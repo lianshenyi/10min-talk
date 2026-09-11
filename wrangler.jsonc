@@ -1,0 +1,20 @@
+// Project-root wrangler config that Vinext merges into
+// dist/server/wrangler.json at build time. Only settings that survive
+// the build (KV namespaces, durable-object bindings, env vars) live
+// here — everything Cloudflare discovers from dist/client (assets,
+// compat date/flags, main entry) is still owned by the Vite config.
+{
+  // 12-hour KV namespace for the `/api/ai` rate limiter.
+  // Create via `wrangler kv namespace create RATE_LIMIT_KV` and paste
+  // the returned id here (or set it in the Cloudflare dashboard before
+  // deploying via the Pages UI, where it can be supplied through the
+  // KV bindings screen). The id below is intentionally a placeholder;
+  // production deploys MUST replace it. Local dev (`npm start`) does
+  // not require a real namespace — miniflare provisions one in-memory.
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT_KV",
+      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+    }
+  ]
+}
