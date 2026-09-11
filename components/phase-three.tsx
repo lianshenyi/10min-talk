@@ -1,7 +1,7 @@
 'use client';
 
 import { Download, KeyRound, Search, Trash2, X } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { listModels, requestEvaluation, verifyAiKey } from '@/lib/ai';
 import { terms } from '@/data/terms';
 import { clearConfig, loadEncryptedConfig, saveConfig, unlockConfig } from '@/lib/secure-config';
@@ -11,8 +11,8 @@ import type { AiConfig, EvaluationResult, HistoryEntry, TermCard } from '@/lib/t
 
 const presets = {
   deepseek: { label: 'DeepSeek API', provider: 'openai' as const, endpoint: 'https://api.deepseek.com/chat/completions', models: ['deepseek-v4-flash', 'deepseek-v4-pro'] },
-  minimaxCn: { label: 'MiniMax 国内 Token Plan', provider: 'anthropic' as const, endpoint: 'https://api.minimaxi.com/anthropic/v1/messages', models: ['MiniMax-M2.7', 'MiniMax-M2.7-highspeed', 'MiniMax-M2.5', 'MiniMax-M2.5-highspeed'] },
-  minimaxIntl: { label: 'MiniMax 国际 Token Plan', provider: 'anthropic' as const, endpoint: 'https://api.minimax.io/anthropic/v1/messages', models: ['MiniMax-M3', 'MiniMax-M2.7', 'MiniMax-M2.7-highspeed', 'MiniMax-M2.5', 'MiniMax-M2.5-highspeed', 'MiniMax-M2.1', 'MiniMax-M2.1-highspeed'] },
+  minimaxCn: { label: 'MiniMax 国内 Token Plan', provider: 'anthropic' as const, endpoint: 'https://api.minimaxi.com/anthropic/v1/messages', models: ['MiniMax-M2.7-highspeed', 'MiniMax-M3', 'MiniMax-M2.7', 'MiniMax-M2.5-highspeed', 'MiniMax-M2.5'] },
+  minimaxIntl: { label: 'MiniMax 国际 Token Plan', provider: 'anthropic' as const, endpoint: 'https://api.minimax.io/anthropic/v1/messages', models: ['MiniMax-M2.7-highspeed', 'MiniMax-M3', 'MiniMax-M2.7', 'MiniMax-M2.5-highspeed', 'MiniMax-M2.5', 'MiniMax-M2.1-highspeed', 'MiniMax-M2.1'] },
 };
 
 export function AiSettings({ onReady, onClose }: { onReady: (config: AiConfig | null) => void; onClose: () => void }) {
@@ -67,8 +67,54 @@ export function AiSettings({ onReady, onClose }: { onReady: (config: AiConfig | 
 
 export function EvaluationPanel({ config, term, transcript, onResult }: { config: AiConfig | null; term: TermCard; transcript: string; onResult: (value: EvaluationResult) => void }) {
   const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [result, setResult] = useState<EvaluationResult | null>(null);
-  const evaluate = async () => { if (!config) { setError('请先在 AI 设置中解锁配置。'); return; } setLoading(true); setError(''); try { const next = await requestEvaluation(config, term, transcript); setResult(next); onResult(next); } catch (reason) { setError((reason as Error).message); } finally { setLoading(false); } };
-  return <section className="evaluation"><button className="primary-action" onClick={evaluate} disabled={loading}>{loading ? '正在评价…' : '获取 AI 评价'}</button>{error && <output className="notice">{error}</output>}{result && <div className="evaluation-result"><div className="scores"><span>理解 <b>{result.understanding}/5</b></span><span>表达 <b>{result.expression}/5</b></span><span>应用 <b>{result.application}/5</b></span></div><p>{result.summary}</p><strong>亮点</strong><ul>{result.strengths.map((item) => <li key={item}>{item}</li>)}</ul><strong>下一步</strong><p>{result.nextQuestion}</p></div>}</section>;
+  const [thinkingDraft, setThinkingDraft] = useState('');
+  const [textDraft, setTextDraft] = useState('');
+  const thinkingRef = useRef<HTMLDivElement | null>(null);
+  const textRef = useRef<HTMLDivElement | null>(null);
+  const evaluate = async () => {
+    if (!config) { setError('请先在 AI 设置中解锁配置。'); return; }
+    setLoading(true); setError(''); setResult(null); setThinkingDraft(''); setTextDraft('');
+    try {
+      const next = await requestEvaluation(config, term, transcript, {
+        onThinkingDelta: (delta) => setThinkingDraft((previous) => {
+          const updated = previous + delta;
+          queueMicrotask(() => { thinkingRef.current?.scrollTo({ top: thinkingRef.current.scrollHeight }); });
+          return updated;
+        }),
+        onTextDelta: (delta) => setTextDraft((previous) => {
+          const updated = previous + delta;
+          queueMicrotask(() => { textRef.current?.scrollTo({ top: textRef.current.scrollHeight }); });
+          return updated;
+        }),
+      });
+      setResult(next);
+      onResult(next);
+    } catch (reason) { setError((reason as Error).message); }
+    finally { setLoading(false); }
+  };
+  const showStreaming = loading && (thinkingDraft || textDraft);
+  return (
+    <section className="evaluation">
+      <button className="primary-action" onClick={evaluate} disabled={loading}>{loading ? '正在评价…' : '获取 AI 评价'}</button>
+      {error && <output className="notice">{error}</output>}
+      {showStreaming && (
+        <div className="evaluation-streaming">
+          {thinkingDraft && <details className="evaluation-thinking" open><summary>AI 思考中</summary><div ref={thinkingRef} className="evaluation-thinking-body"><pre>{thinkingDraft}<span className="cursor" /></pre></div></details>}
+          {textDraft && <div className="evaluation-text-draft" ref={textRef}><strong>正在生成评价</strong><pre>{textDraft}<span className="cursor" /></pre></div>}
+        </div>
+      )}
+      {result && (
+        <div className="evaluation-result">
+          <div className="scores"><span>理解 <b>{result.understanding}/5</b></span><span>表达 <b>{result.expression}/5</b></span><span>应用 <b>{result.application}/5</b></span></div>
+          <p>{result.summary}</p>
+          <strong>亮点</strong>
+          <ul>{result.strengths.map((item) => <li key={item}>{item}</li>)}</ul>
+          <strong>下一步</strong>
+          <p>{result.nextQuestion}</p>
+        </div>
+      )}
+    </section>
+  );
 }
 
 export function WikipediaPanel({ onAdd }: { onAdd: (term: TermCard) => void }) {

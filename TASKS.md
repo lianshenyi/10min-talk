@@ -43,7 +43,13 @@
 
 - [x] **3.1** Web Crypto 加密、解锁、清除配置与安全说明
 - [x] **3.2** OpenAI-compatible/Anthropic 适配器、连接测试与结构校验
+  - 后续补：按 `(provider, model)` 查 `lib/ai-models.ts` 注册表决定 max_tokens / thinking 参数（DeepSeek 关闭思考、MiniMax 默认禁用思考避免正文被吃空、Claude 3.7 启用扩展思考）
 - [x] **3.3** 自动评价界面及鉴权、CORS、限流、超时、格式异常处理
+  - 后续补：研究超时从 45s 提到 60s；研究速览上限从 180 字提到 350 字，要求包含“误解或边界”；thinking-only 响应按 `isMostlyChinese`（>40% 中文字符）判断是否当作成品返回，英文元推理走 actionable 错误
+  - 后续补：评价路径改为 SSE 流式，`evaluation` budget 4000；UI 在 loading 阶段同时展示思考与生成中的正文，结果出来后只展示评价
+  - 后续补：MiniMax `minMaxTokens` 从 1024 提到 4000；研究速览复用 SSE，`AiResearchBrief` 同时订阅 `onTextDelta` / `onThinkingDelta`，中文思考作为可见草稿以避免 MiniMax 独返 thinking 时 UI 卡在“AI 正在整理…”
+  - 后续补：`timeoutFetch` 把 `TypeError: Failed to fetch` 翻成中文（相对路径 → 后端未启，绝对 URL → 网络或 CORS）；`verifyAiKey` 二次校验上游 HTTP 200 内的错误体（MiniMax `base_resp.status_code` / OpenAI `error.message` / 通用 `message`），避免静默“验证成功”
+  - 后续补：`AiResearchBrief` 的 `key` 改为只跟 `term.id` 联动，避免 AI 设置中途保存导致草稿被卸载；进度状态加耗时与超 8s 重试入口；`EvaluationPanel` 同源例的“AI 思考中…”不加耗时提示即可（一次性 phase），不统一带重试按钮
 - [x] **3.4** 在线百科候选搜索、确认入库和离线降级
 - [x] **3.5** 历史记录、导出、删除及配额错误提示
 - [ ] **3.6** lint、typecheck/build 与主流程浏览器验证（已完成新增代码 lint、typecheck、build；待含真实 Endpoint 的浏览器验证）
@@ -68,6 +74,13 @@
 | 1 产品骨架与词库 | ✅ | 2026-09-10 |
 | 2 学习闭环 | ✅ | 2026-09-10 |
 | 3 AI、在线扩展与测试 | 🟡 | 2026-09-11 |
+| 3.x 跟随调整（按模型分流、速览扩写、思考内容辨识） | ✅ | 2026-09-11 |
+| 3.x 跟随调整（评价 SSE 流式化、4000 token 预算、UI 两阶段呈现） | ✅ | 2026-09-11 |
+| 3.x 跟随调整（MiniMax 预算升至 4000、研究速览走 SSE 增量渲染） | ✅ | 2026-09-11 |
+| 3.x 跟随调整（研究速览同时订阅 thinking 流，中文思考作为可见草稿） | ✅ | 2026-09-11 |
+| 3.x 跟随调整（Failed to fetch 本地化、上游 200+错误体 二次校验） | ✅ | 2026-09-11 |
+| 3.x 跟随调整（研究速览 key 解耦、耗时+重试） | ✅ | 2026-09-11 |
+| 3.x 跟随调整（MiniMax M2.7 thinking-only 专属提示 + 默认 -highspeed + 国内预设加 M3） | ✅ | 2026-09-11 |
 
 ---
 
@@ -77,4 +90,5 @@
 npm run dev
 npm run lint
 npm run build
+npm test
 ```

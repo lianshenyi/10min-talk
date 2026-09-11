@@ -42,7 +42,7 @@
 职责：localStorage 保存小型偏好/加密配置；IndexedDB 保存音频、历史和在线词条。
 
 ### 4.5 AI Adapters
-职责：构造白名单请求、设置超时、标准化两类响应、校验评价 JSON、分类错误。
+职责：构造白名单请求、按模型注册表分流（思考参数、token 预算）、设置超时、标准化两类响应、校验评价 JSON、分类错误、在 thinking-only 时按中文比例决回退或报错。
 
 ## 5. 关键设计 / 核心机制
 
@@ -62,6 +62,31 @@
 - 每次保存生成 16 字节 salt 与 12 字节 IV；localStorage 仅保存版本、算法参数和密文。
 - 解锁口令和明文 Key 只留内存；忘记口令只能重置 AI 配置。
 - 该方案只保护静态存储，不能防御运行时 XSS、恶意扩展或不可信 Endpoint。
+
+### 5.4 按模型分流
+
+`lib/ai-models.ts` 维护一个 `(provider, model)` → `ModelBehavior` 的注册表，`createCompletionBody` 先查表再走默认逻辑：
+
+- `deepseek-*`（OpenAI 协议）：注入 `thinking: { type: 'disabled' }`，最低 1024 token。
+- `MiniMax-M2/M3*`（Anthropic 协议）：默认传 `thinking: { type: 'disabled' }` 关闭思考，避免思考块吃满预算后只剩空正文；`minMaxTokens` 4000 与 evaluation 路径对齐，预留 SSE 流式过程中文本增量的余量。`research` 超时 60s 预留网络抖动。当响应只含 thinking 块时，`requestText` 调用 `isMostlyChinese` 判断：中文为主（>40% 中文字符）的成品被当作正文返回，英文元推理仍走“可操作的错误”。
+  - **实测已知问题（2026-09-11）**：`MiniMax-M2.7` 会忽略 `thinking: disabled`，生成整段英文元推理（含逐字符计数）并把 `minMaxTokens=4000` 预算全部吃光（`stop_reason: max_tokens`、`output_tokens_details.thinking_tokens: 4000`），从未发出 `text` block，导致 stream 结束后抛出“模型开启了深度思考但未输出正文”。`streamCompletion` 与非流式 `requestText` 收尾时识别 `^MiniMax-M[23]` + 有 thinking 但无 text 的组合，抛出专属提示明确指向 `-highspeed` 变体或 `M3` 模型；预设下拉默认推荐 `MiniMax-M2.7-highspeed`，国内预设同步补 `MiniMax-M3` 选项。
+- `claude-3-7-*`（Anthropic 协议）：启用扩展思考 `budget_tokens: 1024`，最低 2048 token。
+- 其它模型：保持原行为。
+
+速览区域只展示成品正文；思考过程与英文元推理都不应泄漏给用户。
+
+复盘评价路径走不同策略：`AI_RESPONSE_TOKEN_BUDGETS.evaluation = 4000`，超时 60s。`requestEvaluation` 调用 `requestText(..., { includeThinking: true, callbacks })`，底层启用 SSE 流式：`onThinkingDelta` 透出思考增量，`onTextDelta` 透出正文增量；评价 JSON 仅从最终 text 抽取，`EvaluationResult.thinking` 随会话存储但不在评价完成后的 UI 中呈现。UI 分为两阶段：评价过程中（loading）在 `evaluation-thinking` / `evaluation-text-draft` 中实时展示思考与生成中的文本，并随增量自动滚动；评价完成后仅展示评分与点评。
+
+研究速览路径同样走 SSE：`requestResearchBrief(config, term, callbacks?)` 转发 `onTextDelta` 与 `onThinkingDelta`。`AiResearchBrief` 本地跟踪 `textDraft` / `thinkingDraft`：仅正文可见时直接展示；正文为空但思考是中文（`isMostlyChinese`）时将思考作为可见草稿；英文思考独白隐藏，仅显示 “AI 思考中…”，避免元推理污染速览区。完成时 `requestText` 仍走 `isMostlyChinese` 回退，保证响应只剩中文思考块时也能交付成品。
+
+`AiResearchBrief` 仅以 `term.id` 作为 React `key`，中途改动 AI 设置只重跑 effect、不重挂组件；新 chunks 会覆盖草稿，UI 不会闪回“AI 正在整理…”。loading 期间每秒刷新 `elapsedSeconds`，无任何增量超 8s 时把提示切成“AI 响应较慢（N s）…”并露出“重试”按钮，避免上游沉默时给人“完成”的假象。
+
+### 5.5 研究速览输出格式
+
+- 字数上限 350 中文字，超出会被模型截断但不会报错。
+- 必含要素：核心含义 / 一个例子或应用 / 与研究问题的关联 / 可能存在的误解或边界。
+- 事实不确定时模型应写入“需查证”，不编造来源。
+- 响应 JSON 解析失败或不含 text 块时，按 5.4 中的中文思考判断或 actionable 错误处理。
 
 ## 6. 数据模型
 
@@ -113,6 +138,8 @@ interface EvaluationResult {
 | Wikipedia | `action=query&generator=search&origin=*`，只用于用户主动发现候选词条 |
 
 AI 返回固定评价 JSON。运行时校验三项评分为 0–5、文本/数组类型；围栏 JSON 可容错剥离，验证失败展示原始文本但不写入正式评价。
+
+测试连接经本站 `/api/ai` 代理完成，避免自定义 Endpoint 的 CORS 问题。`timeoutFetch` 把网络层 `TypeError: Failed to fetch` 翻成可执行建议：相对路径提示 dev server 未启动，绝对 URL 提示网络/CORS；`verifyAiKey` 二次校验上游响应——HTTP 200 但体内 `status_code !== 0`（MiniMax `base_resp`）、`error.message`（OpenAI）、`message`（通用）均视为鉴权失败，避免静默"验证成功"。
 
 ## 8. 技术选型
 
