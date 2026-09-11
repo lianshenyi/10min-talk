@@ -1,0 +1,40 @@
+import type { TermCard, TermKind } from '@/lib/types';
+
+type Seed = { domain: string; entries: [string, string, string][] };
+
+const sources = (title: string) => [
+  { label: '维基百科', url: `https://zh.wikipedia.org/wiki/${encodeURIComponent(title)}` },
+  { label: '必应搜索', url: `https://www.bing.com/search?q=${encodeURIComponent(title)}` },
+  { label: 'Google Scholar', url: `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}` },
+];
+
+const seeds: Seed[] = [
+  { domain: '认知科学', entries: [['确认偏误', 'Confirmation bias', '它如何影响你对相反证据的处理？'], ['邓宁—克鲁格效应', 'Dunning–Kruger effect', '能力与自我判断为什么会错位？'], ['工作记忆', 'Working memory', '它的容量限制如何塑造学习方法？'], ['认知负荷理论', 'Cognitive load theory', '怎样区分有益与无益的学习负荷？'], ['框架效应', 'Framing effect', '同一事实如何因表述而改变选择？'], ['可得性启发式', 'Availability heuristic', '容易想起的案例为何会误导判断？'], ['锚定效应', 'Anchoring effect', '最初数字如何影响后续估计？'], ['元认知', 'Metacognition', '如何知道自己真的理解了？'], ['间隔效应', 'Spacing effect', '复习间隔为什么比集中练习有效？'], ['测试效应', 'Testing effect', '主动回忆为何强化长期记忆？'], ['选择盲视', 'Choice blindness', '人为何会为并未作出的选择辩护？'], ['损失厌恶', 'Loss aversion', '损失为何比同等收益更有力量？']] },
+  { domain: '经济学', entries: [['机会成本', 'Opportunity cost', '一个选择真正放弃了什么？'], ['比较优势', 'Comparative advantage', '双方如何在效率不同下仍能互利？'], ['边际效用', 'Marginal utility', '为什么额外一单位的价值会变化？'], ['外部性', 'Externality', '市场价格遗漏了哪些社会成本？'], ['逆向选择', 'Adverse selection', '信息不对称如何劣化市场？'], ['道德风险', 'Moral hazard', '保障为何可能改变行为？'], ['沉没成本谬误', 'Sunk cost fallacy', '过去投入为何不该决定未来选择？'], ['囚徒困境', "Prisoner's dilemma", '个人理性为何会导向集体低效？'], ['公地悲剧', 'Tragedy of the commons', '共享资源怎样避免被过度使用？'], ['网络效应', 'Network effect', '用户增加为何会提升产品价值？'], ['价格弹性', 'Price elasticity', '价格变化会如何改变需求？'], ['规模经济', 'Economies of scale', '产量扩大为何能降低单位成本？']] },
+  { domain: '物理学', entries: [['熵', 'Entropy', '它为何常被描述为无序，又不止于此？'], ['相对论性时间膨胀', 'Time dilation', '速度如何改变时间测量？'], ['量子叠加', 'Quantum superposition', '叠加态与日常直觉冲突在哪里？'], ['不确定性原理', 'Uncertainty principle', '它限制的是仪器还是自然本身？'], ['波粒二象性', 'Wave–particle duality', '同一对象为何呈现两种行为？'], ['多普勒效应', 'Doppler effect', '运动如何改变观察到的频率？'], ['麦克斯韦方程组', "Maxwell's equations", '电与磁如何被统一描述？'], ['希格斯机制', 'Higgs mechanism', '粒子质量从何而来？'], ['量子隧穿', 'Quantum tunnelling', '粒子怎样越过经典不可逾越的势垒？'], ['混沌理论', 'Chaos theory', '确定性系统为何难以预测？'], ['临界质量', 'Critical mass', '什么条件使链式反应自持？'], ['暗物质', 'Dark matter', '哪些观测支持它的存在？']] },
+  { domain: '生命科学', entries: [['表观遗传学', 'Epigenetics', '环境如何影响基因表达而不改变序列？'], ['稳态', 'Homeostasis', '生命系统如何保持动态平衡？'], ['自然选择', 'Natural selection', '它如何作用于种群而非个体？'], ['基因漂变', 'Genetic drift', '随机性何时会超过选择压力？'], ['蛋白质折叠', 'Protein folding', '序列怎样决定三维结构？'], ['细胞凋亡', 'Apoptosis', '程序性死亡为何对生命必要？'], ['微生物组', 'Microbiome', '人体与微生物是怎样的共生系统？'], ['CRISPR', 'CRISPR', '它如何实现基因编辑？'], ['神经可塑性', 'Neuroplasticity', '大脑如何因经验而改变？'], ['免疫记忆', 'Immune memory', '疫苗如何训练免疫系统？'], ['趋同演化', 'Convergent evolution', '不同谱系为何演化出相似特征？'], ['生态位', 'Ecological niche', '物种的角色与栖息地有何区别？']] },
+  { domain: '计算机科学', entries: [['图灵完备', 'Turing completeness', '它说明了计算系统的什么能力？'], ['哈希表', 'Hash table', '为何能实现近似常数时间查找？'], ['CAP 定理', 'CAP theorem', '分布式系统为何不能同时满足三者？'], ['一致性哈希', 'Consistent hashing', '它怎样降低节点变化带来的迁移？'], ['幂等性', 'Idempotency', '为什么网络 API 需要它？'], ['递归', 'Recursion', '何时比迭代更清晰，代价是什么？'], ['垃圾回收', 'Garbage collection', '自动内存管理如何取舍性能？'], ['公钥密码学', 'Public-key cryptography', '公开密钥如何支持保密通信？'], ['零知识证明', 'Zero-knowledge proof', '如何证明知道答案却不泄露答案？'], ['拜占庭容错', 'Byzantine fault tolerance', '节点作恶时如何仍达成共识？'], ['布隆过滤器', 'Bloom filter', '为何允许误判却仍有用？'], ['Big O 表示法', 'Big O notation', '它刻画的究竟是哪一种增长？']] },
+  { domain: '数学', entries: [['贝叶斯定理', "Bayes' theorem", '新证据如何更新原有相信程度？'], ['蒙特卡洛方法', 'Monte Carlo method', '随机抽样如何解决确定性问题？'], ['哥德尔不完备定理', "Gödel's incompleteness theorems", '形式系统为何存在不可证明命题？'], ['图论', 'Graph theory', '关系问题如何转化为节点与边？'], ['傅里叶变换', 'Fourier transform', '复杂信号如何拆解为频率成分？'], ['马尔可夫链', 'Markov chain', '无记忆性假设意味着什么？'], ['纳什均衡', 'Nash equilibrium', '何种策略组合无人愿意单独改变？'], ['中心极限定理', 'Central limit theorem', '样本均值为何趋近正态分布？'], ['分形', 'Fractal', '自相似性如何跨越不同尺度？'], ['拓扑学', 'Topology', '连续变形下哪些性质不变？'], ['最优化', 'Optimization', '局部最优与全局最优如何区分？'], ['随机变量', 'Random variable', '如何用函数描述不确定结果？']] },
+  { domain: '哲学', entries: [['中文房间', 'Chinese room', '符号操作是否等于理解？'], ['电车难题', 'Trolley problem', '直觉冲突揭示了什么伦理分歧？'], ['无知之幕', 'Veil of ignorance', '它如何用于设计公平原则？'], ['忒修斯之船', 'Ship of Theseus', '持续替换后同一性是否仍存在？'], ['休谟问题', "Hume's problem of induction", '过去为何不能逻辑保证未来？'], ['证伪主义', 'Falsificationism', '科学理论为何应可被反驳？'], ['功利主义', 'Utilitarianism', '最大幸福如何成为道德标准？'], ['义务论', 'Deontology', '为什么某些行为不应以结果衡量？'], ['现象学', 'Phenomenology', '第一人称经验为何重要？'], ['奥卡姆剃刀', "Occam's razor", '简单解释何时更值得偏好？'], ['缸中之脑', 'Brain in a vat', '我们如何证明外部世界存在？'], ['双重效应原则', 'Doctrine of double effect', '预见伤害与意图伤害如何区分？']] },
+  { domain: '社会学', entries: [['马太效应', 'Matthew effect', '优势为何会累积为更大优势？'], ['社会资本', 'Social capital', '关系网络如何产生资源与信任？'], ['污名化', 'Stigma', '标签怎样塑造身份与机会？'], ['幸存者偏差', 'Survivorship bias', '遗漏失败者为何扭曲结论？'], ['旁观者效应', 'Bystander effect', '人多时为何反而少人行动？'], ['社会建构', 'Social construction', '哪些看似自然的事物由社会塑造？'], ['角色冲突', 'Role conflict', '多重身份要求相撞时怎么办？'], ['信息茧房', 'Filter bubble', '个性化推荐如何收窄视野？'], ['群体极化', 'Group polarization', '讨论为何使立场更极端？'], ['社会流动', 'Social mobility', '个人如何跨越阶层位置？'], ['去个体化', 'Deindividuation', '群体中为何更可能失去自我约束？'], ['霍桑效应', 'Hawthorne effect', '被观察为何会改变行为？']] },
+  { domain: '设计与系统', entries: [['反馈回路', 'Feedback loop', '正反馈和负反馈如何改变系统？'], ['系统思维', 'Systems thinking', '为何不能只看单个局部？'], ['二阶效应', 'Second-order effects', '一个决策的后续影响如何被忽略？'], ['杠杆点', 'Leverage points', '哪里的小改变最能改变系统？'], ['路径依赖', 'Path dependence', '早期选择如何锁定后续可能？'], ['涌现', 'Emergence', '整体行为如何超出个体规则？'], ['可供性', 'Affordance', '物品设计如何暗示正确操作？'], ['认知摩擦', 'Cognitive friction', '界面何时该顺滑，何时该阻碍？'], ['服务蓝图', 'Service blueprint', '前台体验如何连接后台流程？'], ['设计债务', 'Design debt', '短期妥协会留下什么成本？'], ['故障模式分析', 'Failure mode analysis', '如何预先发现系统失效路径？'], ['韧性', 'Resilience', '系统如何在受扰后恢复功能？']] },
+  { domain: '语言学', entries: [['语言相对论', 'Linguistic relativity', '语言会在多大程度上影响思维？'], ['语用学', 'Pragmatics', '语境如何改变一句话的含义？'], ['格赖斯准则', 'Gricean maxims', '对话为何依赖隐含合作？'], ['音位', 'Phoneme', '语音单位怎样区别意义？'], ['形态学', 'Morphology', '词语内部如何组织意义？'], ['语义场', 'Semantic field', '词汇如何在意义网络中关联？'], ['语料库语言学', 'Corpus linguistics', '大量真实文本怎样支持语言研究？'], ['代码转换', 'Code-switching', '双语者为何切换语言？'], ['隐喻概念理论', 'Conceptual metaphor theory', '抽象概念如何借助身体经验理解？'], ['乔姆斯基层级', 'Chomsky hierarchy', '不同文法类型如何限制表达能力？'], ['言语行为', 'Speech act', '说话如何本身成为行动？'], ['最小对立体', 'Minimal pair', '如何用两词识别音位差异？']] },
+  { domain: '历史与政治', entries: [['威斯特伐利亚体系', 'Westphalian system', '现代主权国家观念如何形成？'], ['制度路径依赖', 'Institutional path dependence', '旧制度为何难以轻易改变？'], ['软实力', 'Soft power', '吸引力如何成为政治资源？'], ['安全困境', 'Security dilemma', '自卫为何可能使各方更不安全？'], ['委托—代理问题', 'Principal–agent problem', '授权后如何防止目标偏离？'], ['公共选择理论', 'Public choice theory', '政治行为如何也受激励影响？'], ['历史主义', 'Historicism', '理解历史是否需要置于具体语境？'], ['民族国家', 'Nation-state', '民族与国家为何不总是重合？'], ['制衡', 'Checks and balances', '权力如何用权力约束？'], ['地缘政治', 'Geopolitics', '地理条件如何塑造国家战略？'], ['集体行动问题', 'Collective action problem', '共同利益为何难以共同实现？'], ['转型正义', 'Transitional justice', '社会如何处理历史暴力遗产？']] },
+  { domain: '商业与管理', entries: [['双边市场', 'Two-sided market', '平台如何同时服务两类用户？'], ['单位经济模型', 'Unit economics', '每位用户究竟创造还是消耗价值？'], ['OKR', 'Objectives and Key Results', '目标与关键结果如何配合？'], ['护城河', 'Economic moat', '竞争优势为何能持续？'], ['精益创业', 'Lean startup', '如何用实验代替臆测？'], ['蓝海战略', 'Blue ocean strategy', '怎样避开正面竞争？'], ['第一性原理', 'First principles thinking', '如何从基本事实重新推导方案？'], ['德鲁克有效性', 'Executive effectiveness', '管理者如何把时间变成成果？'], ['RACI 矩阵', 'RACI matrix', '责任分配如何避免无人负责？'], ['组织惯性', 'Organizational inertia', '组织为何抗拒改变？'], ['心理安全感', 'Psychological safety', '团队为何需要能安全地提出异议？'], ['飞轮效应', 'Flywheel effect', '相互增强的环节如何形成增长？']] },
+];
+
+const kinds: TermKind[] = ['效应', '理论', '模型', '原则', '方法', '悖论', '定律'];
+
+export const terms: TermCard[] = seeds.flatMap(({ domain, entries }, domainIndex) =>
+  entries.map(([title, english, prompt], entryIndex) => ({
+    id: `${domainIndex + 1}-${entryIndex + 1}`,
+    title,
+    english,
+    domain,
+    kind: kinds[(domainIndex + entryIndex) % kinds.length],
+    prompt,
+    sources: sources(title),
+  })),
+);
+
+export const domains = ['全部领域', ...seeds.map(({ domain }) => domain)];
