@@ -33,7 +33,7 @@ export type RateLimitConfig = {
 };
 
 export const DEFAULT_RATE_LIMIT: RateLimitConfig = {
-  perMinute: 5,
+  perMinute: 10,
   perDay: 100,
   windowSeconds: 60,
 };

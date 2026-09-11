@@ -20,7 +20,7 @@
 - 录音：`MediaRecorder` + MIME 探测；转写：`SpeechRecognition` 能力探测 + 手动兜底，不上传音频。
 - 加密：`Web Crypto` PBKDF2-SHA-256 + AES-GCM；明文 API Key 只在内存中。
 - 部署：本地 `npm run dev` (Vite 3000) 或 `npm start` (`wrangler dev` 读 `dist/server`)；公网部署走 Cloudflare Pages（Functions 保留 `/api/ai`），流程见 `DEPLOY.md`。
-- 公网安全：`/api/ai` 默认上限 5 req/min + 100 req/IP/日，绑定 `RATE_LIMIT_KV`（生产需替换 `wrangler.jsonc` 里的 `REPLACE_WITH_KV_NAMESPACE_ID`）。决策逻辑在 `lib/rate-limit.ts`，纯函数被 `tests/rate-limit.test.ts` 覆盖。
+- 公网安全：`/api/ai` 默认上限 10 req/min + 100 req/IP/日，绑定 `RATE_LIMIT_KV`（生产需替换 `wrangler.jsonc` 里的 `REPLACE_WITH_KV_NAMESPACE_ID`）。决策逻辑在 `lib/rate-limit.ts`，纯函数被 `tests/rate-limit.test.ts` 覆盖。
 
 ## 模块速查
 

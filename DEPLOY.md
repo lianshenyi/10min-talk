@@ -102,7 +102,7 @@ npx wrangler kv namespace create RATE_LIMIT_KV
 - [ ] 在 AI 设置里填入 DeepSeek 或 MiniMax 的 Key，点 **测试连接**：返回成功（而不是 CORS 错误）
 - [ ] 跑一次 AI 研究速览或 AI 评价：能看到流式输出
 - [ ] 在浏览器开发者工具的 Network 面板观察 `/api/ai` 响应头里包含 `X-RateLimit-Remaining-Minute`
-- [ ] 反复刷新 `/api/ai` 6 次以上，应看到第 6 次返回 `429 Too Many Requests`，body 含 `reason: "per-minute"`
+- [ ] 反复刷新 `/api/ai` 11 次以上，应看到第 11 次返回 `429 Too Many Requests`，body 含 `reason: "per-minute"`
 
 ---
 
