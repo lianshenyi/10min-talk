@@ -8,6 +8,10 @@ const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   '00000000-0000-4000-8000-000000000000';
 
 const { d1, r2 } = hostingConfig;
+// Cloudflare Workers Git builds provide this value through their build
+// environment. Keeping it out of wrangler.jsonc lets each deployment choose
+// its own KV namespace without committing an account-specific resource ID.
+const rateLimitKvNamespaceId = process.env.RATE_LIMIT_KV_NAMESPACE_ID;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === 'seatbelt';
@@ -29,6 +33,14 @@ const localBindingConfig = {
         {
           binding: r2,
           bucket_name: 'site-creator-r2',
+        },
+      ]
+    : [],
+  kv_namespaces: rateLimitKvNamespaceId
+    ? [
+        {
+          binding: 'RATE_LIMIT_KV',
+          id: rateLimitKvNamespaceId,
         },
       ]
     : [],

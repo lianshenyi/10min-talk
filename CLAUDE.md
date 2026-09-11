@@ -19,14 +19,14 @@
 - 存储：`localStorage` 存轻量偏好与加密 AI 配置；`IndexedDB` 存音频 Blob / 历史 / 个人词条。
 - 录音：`MediaRecorder` + MIME 探测；转写：`SpeechRecognition` 能力探测 + 手动兜底，不上传音频。
 - 加密：`Web Crypto` PBKDF2-SHA-256 + AES-GCM；明文 API Key 只在内存中。
-- 部署：本地 `npm run dev` (Vite 3000) 或 `npm start` (`wrangler dev` 读 `dist/server`)；公网部署走 Cloudflare Pages（Functions 保留 `/api/ai`），流程见 `DEPLOY.md`。
-- 公网安全：`/api/ai` 默认上限 10 req/min + 100 req/IP/日，绑定 `RATE_LIMIT_KV`（生产需替换 `wrangler.jsonc` 里的 `REPLACE_WITH_KV_NAMESPACE_ID`）。决策逻辑在 `lib/rate-limit.ts`，纯函数被 `tests/rate-limit.test.ts` 覆盖。
+- 部署：本地 `npm run dev` (Vite 3000) 或 `npm start` (`wrangler dev` 读 `dist/server`)；公网部署走 **Cloudflare Workers**（带 static assets binding，**不是 Pages**）。Vinext 编译产物是 Workers config（`dist/server/wrangler.json` 带 `main` + `assets`），部署命令 `npx wrangler deploy --config dist/server/wrangler.json`。完整流程见 `DEPLOY.md`。**注意**：新版控制台 UI 强制填"部署命令"，token 必须带 `Account → Workers 脚本 → Edit` 权限（**不是** `Cloudflare Pages: Edit`）；项目须建在 **Workers 板块**而不是 Pages 板块——Vinext 编译产物走 `main` 入口，Pages 找不到 `_worker.js` 会让所有请求 404。token 权限与账号角色（Super Administrator）相互独立，光有角色不够。
+- 公网安全：`/api/ai` 默认上限 10 req/min + 100 req/IP/日，绑定 `RATE_LIMIT_KV`。生产/Preview 在 Cloudflare **Settings → Build → Build Variables and Secrets** 填写 `RATE_LIMIT_KV_NAMESPACE_ID`（不是 Runtime Variables and Secrets）；`vite.config.ts` 构建时将其写入生成的 Workers 配置，仓库不保存 namespace ID。决策逻辑在 `lib/rate-limit.ts`，纯函数被 `tests/rate-limit.test.ts` 覆盖。
 
 ## 模块速查
 
 ```
 app/                    Vinext 路由 & layout
-  api/ai/route.ts       唯一服务端入口：DeepSeek + MiniMax CN/Intl 的 Completion 代理
+  api/ai/route.ts       唯一服务端入口：DeepSeek + MiniMax CN/Intl 的 Completion 代理（运行在 Vinext 编译出的 Workers module handler 内，`request.env.RATE_LIMIT_KV` 是 Vinext 内部封装、非 Cloudflare 官方契约）
   page.tsx              <LearningApp />
 components/
   learning-app.tsx      状态机 + 所有阶段 UI（draw/research/prepare/speak/transcript）
@@ -51,6 +51,7 @@ tests/                  node:test 跑单测；fixtures 不要 mock 真实 fetch
 - 研究速览 / 评价都走 SSE；`parseSSE` 在 `lib/ai.ts`，增量回调分 `onTextDelta` / `onThinkingDelta`。
 - 按模型分流在 `lib/ai-models.ts`：DeepSeek `thinking: disabled`、MiniMax M2/M3 默认禁用思考（即便回退仍可能只返 thinking）、Claude 3.7 启用扩展思考。修改前先翻 `spec.md` §5.4。
 - 中文思考可作为可见草稿（`isMostlyChinese` >40%），英文独白隐藏——这条铁律改之前要确认 UI 影响面。
+- **`request.env` 不是 Cloudflare 官方 API**。标准 Pages Functions 用 `context.env`、Workers module handler 用 `env` 参数；Vinext 1.0.0-beta.5 在 worker fetch handler 里把 env 挂到 Request 上，代码里写 `(request as Request & { env?: AiRouteEnv }).env` 才能拿到 binding。**升级 Vinext 时必须回归 `/api/ai` 的 KV 频控路径**——env 桥接若断，env 是 `undefined`，KV 静默降级为"未限频"。
 
 ## 开发约定
 

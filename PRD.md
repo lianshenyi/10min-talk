@@ -83,5 +83,4 @@
 | 自定义 AI Endpoint 被 CORS 阻止 | 设置页真实请求测试，按鉴权/跨域/超时分类提示 |
 | 浏览器存储被清理或配额不足 | 捕获写入错误，提供导出，不宣称永久保存 |
 | 前 long-term API Key 暴露于前端运行时 | 本地加密、无第三方脚本、风险提示；未来可增加本地代理 |
-| 公网部署后 `/api/ai` 被滥用 | Cloudflare Pages Functions + 每 IP 频控 + Workers 每日计费上限 1 USD |
-
+| 公网部署后 `/api/ai` 被滥用 | Cloudflare Workers + 每 IP KV 频控 + Workers 每日计费上限 1 USD；namespace ID 由部署环境提供 |

@@ -90,10 +90,13 @@
 
 `/api/ai` 是唯一会被公网访问的服务端入口；为了避免脚本被攻击者滥用，导致每个 IP 不限量调用转走 DeepSeek / MiniMax，必须加限频。决策逻辑与平台适配拆开：
 
+- **部署形态**：项目编译产物是 Vinext 编译出的 Workers module handler（`dist/server/index.js` + `dist/server/wrangler.json`），部署到 Cloudflare **Workers 板块**（不是 Pages 板块）；Workers 项目带 `assets` binding（`directory: dist/client`）让 `/`、`/_next/*` 仍走 worker 处理，Vinext 路由由 worker 内部 dispatcher 完成。Pages 部署不兼容（找不到 `dist/_worker.js`，所有请求 404）。
+- **KV 配置来源**：构建环境的 `RATE_LIMIT_KV_NAMESPACE_ID` 被 `vite.config.ts` 转成 `RATE_LIMIT_KV` binding，随后写入 `dist/server/wrangler.json`；未设置变量时不生成 binding，供本地开发走既有未限频回退。Production 与 Preview 当前共用一个 namespace。
 - 策略：每 IP 10 req/min + 100 req/日（UTC）·跨实例共享。
 - 决策：纯函数 `evaluateRateLimit(counters, config)` 在 `lib/rate-limit.ts`，与 Cloudflare 解耦；KV 读写是 `readCounters` / `writeCounters` 两个薄适配器，可换成其他 KV。
 - KV key：`rl:<ip>:m:<分钟桶>`（TTL 2 分钟）与 `rl:<ip>:d:<UTC 日期>`（TTL 26 小时）。两者分开是为了分钟桶快速过期、日桶隔夜重置，避免单 key 里的字符串 split。
 - 状态机：`route.ts` 先 `readCounters` → `evaluateRateLimit({ ...counters, window: counters.window + 1, daily: counters.daily + 1 })` 决定是否准入 → 仅在 `allow = true` 时 `writeCounters`。返回 429 时携带 `Retry-After` 和 `X-RateLimit-*` 响应头，调用方能直接看到剩余配额。
+- **env 桥接**：`route.ts` 通过 `(request as Request & { env?: AiRouteEnv }).env` 拿 `RATE_LIMIT_KV`。这是 **Vinext 内部封装**（Vinext worker fetch handler 把 `env` 挂到 Request 上），不是 Cloudflare 官方 API——升级 Vinext 时要确认这条桥接没断，否则 `env` 是 `undefined`，KV 静默降级为"未限频"。
 - 客户端：禁止绕过。未来加 Turnstile 时需补齐 siteverify 中间件位置（参 `turnstile-spin` skill）。
 - 兜底：控制台为 Workers 每日计费设上限 1 USD；一旦异常流量逼近阈值，Cloudflare 会自动停服。
 
@@ -188,4 +191,3 @@ AI 返回固定评价 JSON。运行时校验三项评分为 0–5、文本/数�
 - [ ] Anthropic 浏览器请求头与用户 Endpoint 的 CORS 配置。
 - [ ] IndexedDB 配额/隐私模式失败提示。
 - [ ] React Strict Mode 下倒计时只推进一次。
-

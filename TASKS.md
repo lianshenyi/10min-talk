@@ -70,9 +70,10 @@
 
 - [x] **4.1** 在 `lib/rate-limit.ts` 抽离纯函数频控决策（10 req/min、100 req/日）
 - [x] **4.2** `/api/ai` 接入频控；返回 429 + `X-RateLimit-*` 响应头；KV 缺绑时降级为“未限频”
-- [x] **4.3** 项目根 `wrangler.jsonc` 声明 `RATE_LIMIT_KV` binding；Vinext 构建时合并进 `dist/server/wrangler.json`
-- [x] **4.4** 写 `DEPLOY.md`：Cloudflare Pages 部署文档（KV 创建、消费上限、域名、验收清单）
-- [ ] **4.5** 实际部署到 Cloudflare Pages 并验证“真实调用场景”频控生效（需控制台创建 KV 绑定）
+- [x] **4.3** `vite.config.ts` 在构建时读取 Cloudflare 环境变量 `RATE_LIMIT_KV_NAMESPACE_ID` 并生成 `RATE_LIMIT_KV` binding；不再把环境特定 ID 提交到 `wrangler.jsonc`
+- [x] **4.4** 写 `DEPLOY.md`：Cloudflare **Workers** 部署文档（KV 创建、消费上限、域名、验收清单）——踩坑教训：Vinext 是 Workers 项目不是 Pages，部署走 `wrangler deploy --config dist/server/wrangler.json`，不是 `wrangler pages deploy`；详见 §8
+- [ ] **4.5** 实际部署到 Cloudflare Workers 并验证“真实调用场景”频控生效（需控制台创建 KV 绑定；token 须带 `Account → Workers 脚本 → Edit` 权限；项目须建在 Workers 板块而非 Pages 板块，详见 `DEPLOY.md §8`）
+- [x] **4.6** 同步踩坑记录：`DEPLOY.md`（重写为 Workers 流程 + §8 补充 8000007、404、env 桥接等条目）、`CLAUDE.md`（部署行 + 模块速查 + `request.env` 警告）、`spec.md §5.6`（Workers 部署形态 + env 桥接说明）
 
 **Phase 4 完成标志**：公网域名可访问，AI 调用走 `/api/ai` 代理且返回带限频头。
 
@@ -94,7 +95,7 @@
 | 3.x 跟随调整（研究速览 key 解耦、耗时+重试） | ✅ | 2026-09-11 |
 | 3.x 跟随调整（M2.7 thinking-only 专属提示 + 默认 -highspeed + 国内预设加 M3） | ✅ | 2026-09-11 |
 | 3.x 跟随调整（M2.7/-highspeed 英文思考元推理路径下研究速览 stalled 判定拓宽 + 「AI 整理中…」泄露字符数与切模型提示） | ✅ | 2026-09-11 |
-| 4 公网部署与防滥用 | ✅ | 2026-09-11 |
+| 4 公网部署与防滥用 | 🟡 | 2026-09-11（4.1–4.4、4.6 完成；KV ID 改由 Production/Preview 构建环境注入，4.5 待验证真实频控） |
 
 ---
 
