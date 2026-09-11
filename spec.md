@@ -86,6 +86,17 @@
 
 `AiResearchBrief` 仅以 `term.id` 作为 React `key`，中途改动 AI 设置只重跑 effect、不重挂组件；新 chunks 会覆盖草稿，UI 不会闪回“AI 正在整理…”。loading 期间每秒刷新 `elapsedSeconds`，无任何增量超 8s 时把提示切成“AI 响应较慢（N s）…”并露出“重试”按钮，避免上游沉默时给人“完成”的假象。
 
+### 5.6 公网频控与防滥用
+
+`/api/ai` 是唯一会被公网访问的服务端入口；为了避免脚本被攻击者滥用，导致每个 IP 不限量调用转走 DeepSeek / MiniMax，必须加限频。决策逻辑与平台适配拆开：
+
+- 策略：每 IP 5 req/min + 100 req/日（UTC）·跨实例共享。
+- 决策：纯函数 `evaluateRateLimit(counters, config)` 在 `lib/rate-limit.ts`，与 Cloudflare 解耦；KV 读写是 `readCounters` / `writeCounters` 两个薄适配器，可换成其他 KV。
+- KV key：`rl:<ip>:m:<分钟桶>`（TTL 2 分钟）与 `rl:<ip>:d:<UTC 日期>`（TTL 26 小时）。两者分开是为了分钟桶快速过期、日桶隔夜重置，避免单 key 里的字符串 split。
+- 状态机：`route.ts` 先 `readCounters` → `evaluateRateLimit({ ...counters, window: counters.window + 1, daily: counters.daily + 1 })` 决定是否准入 → 仅在 `allow = true` 时 `writeCounters`。返回 429 时携带 `Retry-After` 和 `X-RateLimit-*` 响应头，调用方能直接看到剩余配额。
+- 客户端：禁止绕过。未来加 Turnstile 时需补齐 siteverify 中间件位置（参 `turnstile-spin` skill）。
+- 兜底：控制台为 Workers 每日计费设上限 1 USD；一旦异常流量逼近阈值，Cloudflare 会自动停服。
+
 ### 5.5 研究速览输出格式
 
 - 字数上限 350 中文字，超出会被模型截断但不会报错。

@@ -66,6 +66,18 @@
 
 ---
 
+## Phase 4 — 公网部署与防滥用 ⏱⏱
+
+- [x] **4.1** 在 `lib/rate-limit.ts` 抽离纯函数频控决策（5 req/min、100 req/日）
+- [x] **4.2** `/api/ai` 接入频控；返回 429 + `X-RateLimit-*` 响应头；KV 缺绑时降级为“未限频”
+- [x] **4.3** 项目根 `wrangler.jsonc` 声明 `RATE_LIMIT_KV` binding；Vinext 构建时合并进 `dist/server/wrangler.json`
+- [x] **4.4** 写 `DEPLOY.md`：Cloudflare Pages 部署文档（KV 创建、消费上限、域名、验收清单）
+- [ ] **4.5** 实际部署到 Cloudflare Pages 并验证“真实调用场景”频控生效（需控制台创建 KV 绑定）
+
+**Phase 4 完成标志**：公网域名可访问，AI 调用走 `/api/ai` 代理且返回带限频头。
+
+---
+
 ## 进度跟踪
 
 | Phase | 状态 | 完成日期 |
@@ -82,6 +94,7 @@
 | 3.x 跟随调整（研究速览 key 解耦、耗时+重试） | ✅ | 2026-09-11 |
 | 3.x 跟随调整（M2.7 thinking-only 专属提示 + 默认 -highspeed + 国内预设加 M3） | ✅ | 2026-09-11 |
 | 3.x 跟随调整（M2.7/-highspeed 英文思考元推理路径下研究速览 stalled 判定拓宽 + 「AI 整理中…」泄露字符数与切模型提示） | ✅ | 2026-09-11 |
+| 4 公网部署与防滥用 | ✅ | 2026-09-11 |
 
 ---
 
