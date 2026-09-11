@@ -13,6 +13,8 @@ export function useIsMobile() {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
     };
     mql.addEventListener('change', onChange);
+    // 从外部系统（window.matchMedia）同步初始值，不是 cascading render
+    // oxlint-disable-next-line react/react-compiler
     setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
     return () => mql.removeEventListener('change', onChange);
   }, []);

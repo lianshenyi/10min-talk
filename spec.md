@@ -77,7 +77,12 @@
 
 复盘评价路径走不同策略：`AI_RESPONSE_TOKEN_BUDGETS.evaluation = 4000`，超时 60s。`requestEvaluation` 调用 `requestText(..., { includeThinking: true, callbacks })`，底层启用 SSE 流式：`onThinkingDelta` 透出思考增量，`onTextDelta` 透出正文增量；评价 JSON 仅从最终 text 抽取，`EvaluationResult.thinking` 随会话存储但不在评价完成后的 UI 中呈现。UI 分为两阶段：评价过程中（loading）在 `evaluation-thinking` / `evaluation-text-draft` 中实时展示思考与生成中的文本，并随增量自动滚动；评价完成后仅展示评分与点评。
 
-研究速览路径同样走 SSE：`requestResearchBrief(config, term, callbacks?)` 转发 `onTextDelta` 与 `onThinkingDelta`。`AiResearchBrief` 本地跟踪 `textDraft` / `thinkingDraft`：仅正文可见时直接展示；正文为空但思考是中文（`isMostlyChinese`）时将思考作为可见草稿；英文思考独白隐藏，仅显示 “AI 思考中…”，避免元推理污染速览区。完成时 `requestText` 仍走 `isMostlyChinese` 回退，保证响应只剩中文思考块时也能交付成品。
+研究速览路径同样走 SSE：`requestResearchBrief(config, term, callbacks?)` 转发 `onTextDelta` 与 `onThinkingDelta`。`AiResearchBrief` 本地跟踪 `textDraft` / `thinkingDraft`：仅正文可见时直接展示；正文为空但思考是中文（`isMostlyChinese`）时将思考作为可见草稿；英文思考独白隐藏，仅显示 “AI 整理中…”，避免元推理污染速览区。完成时 `requestText` 仍走 `isMostlyChinese` 回退，保证响应只剩中文思考块时也能交付成品。
+
+**流式体感问题（M2.7 / M2.7-highspeed 已知）**：这两类模型默认会发英文思考元推理（“The user is speaking Chinese. We need to produce…”），使 `isMostlyChinese` 快速翻为 false，原「AI 思考中…+Ns」仅展示秒数累加，体感上流式被隐藏。修复后：
+- 「AI 整理中…」分支同时输出 `{elapsedSeconds}s · 思考字符 {thinkingDraft.length}`，让用户在思考独白路径下也能看到状态推进。
+- `isResearchStalled` （位于 `lib/research-ai.ts`）覆盖三条路径：思考字符 <50 且 ≥8s（早期重试）、思考字符 ≥500 且 ≥6s（M2.7/-highspeed 深度思考路径）、≥25s 兑底；任一为真即在 thinking 分支露出「重试」或「深度思考中，切 -highspeed / M3」按钮，原 `!thinkingDraft && ≥8s` 条件在思考路径下永远不成立，导致重试按钮 / 切模型提示不会露出。
+- `isHeavyThinkingStuck` 独立控制 actionable 提示文案（仅在思考字符 ≥500 且 ≥6s 时显示「切 -highspeed / M3」），避免 25s 兑底路径下文案误导用户。
 
 `AiResearchBrief` 仅以 `term.id` 作为 React `key`，中途改动 AI 设置只重跑 effect、不重挂组件；新 chunks 会覆盖草稿，UI 不会闪回“AI 正在整理…”。loading 期间每秒刷新 `elapsedSeconds`，无任何增量超 8s 时把提示切成“AI 响应较慢（N s）…”并露出“重试”按钮，避免上游沉默时给人“完成”的假象。
 

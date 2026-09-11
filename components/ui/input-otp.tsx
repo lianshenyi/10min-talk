@@ -75,6 +75,8 @@ function InputOTPSeparator({ ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="input-otp-separator"
       className="[&_svg:not([class*='size-'])]:size-4 flex items-center"
+      // `<hr>` 会把视觉分隔升级为节边界；OTP 内这是纯装饰，用 `role="separator"` 更合适
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
       role="separator"
       {...props}
     >

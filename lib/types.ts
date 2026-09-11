@@ -55,6 +55,8 @@ export interface EvaluationResult {
   corrections: string[];
   improvements: string[];
   nextQuestion: string;
+  /** 模型在评价时返回的思考过程；仅在支持思考模式的模型上可能存在 */
+  thinking?: string;
 }
 
 export type AiProvider = 'openai' | 'anthropic';

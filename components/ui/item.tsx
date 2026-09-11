@@ -9,8 +9,10 @@ import { Separator } from '@/components/ui/separator';
 function ItemGroup({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
-      role="list"
       data-slot="item-group"
+      // shadcn 选择 `<div role="list">` 而非 `<ul>` 以保持 flex 布局与厊认项样式可控
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
+      role="list"
       className={cn(
         'gap-4 has-data-[size=sm]:gap-2.5 has-data-[size=xs]:gap-2 group/item-group flex w-full flex-col',
         className,

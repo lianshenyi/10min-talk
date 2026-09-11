@@ -63,6 +63,8 @@ function BreadcrumbPage({ className, ...props }: React.ComponentProps<'span'>) {
   return (
     <span
       data-slot="breadcrumb-page"
+      // 当前页不是真链接，只为在面包屑里标记位置；保留 `role="link"` 让阅读器能识别为可聚焦项
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
       role="link"
       aria-disabled="true"
       aria-current="page"

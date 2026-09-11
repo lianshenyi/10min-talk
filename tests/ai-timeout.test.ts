@@ -4,8 +4,8 @@ import test from 'node:test';
 import { AI_REQUEST_TIMEOUTS, AI_RESPONSE_TOKEN_BUDGETS } from '../lib/ai.ts';
 
 void test('research allows slower model generation while key verification remains bounded', () => {
-  assert.equal(AI_REQUEST_TIMEOUTS.research, 45_000);
+  assert.equal(AI_REQUEST_TIMEOUTS.research, 60_000);
   assert.equal(AI_REQUEST_TIMEOUTS.verification, 10_000);
   assert.ok(AI_REQUEST_TIMEOUTS.research > AI_REQUEST_TIMEOUTS.standard);
-  assert.ok(AI_RESPONSE_TOKEN_BUDGETS.research > 180);
+  assert.ok(AI_RESPONSE_TOKEN_BUDGETS.research > 350);
 });

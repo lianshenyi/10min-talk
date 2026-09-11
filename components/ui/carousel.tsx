@@ -95,6 +95,8 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api) return;
+    // onSelect 是父组件下发的 setState 包装；这里是同步初始同步与订阅，调用链路上不会造成连续刷新
+    // oxlint-disable-next-line react/react-compiler
     onSelect(api);
     api.on('reInit', onSelect);
     api.on('select', onSelect);
@@ -121,6 +123,8 @@ function Carousel({
       <div
         onKeyDownCapture={handleKeyDown}
         className={cn('relative', className)}
+        // shadcn 的轮播外层是交互区域，不能换成 `<section>`（会与页面章节语义混淆）
+        // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
         role="region"
         aria-roledescription="carousel"
         data-slot="carousel"
@@ -158,6 +162,8 @@ function CarouselItem({ className, ...props }: React.ComponentProps<'div'>) {
 
   return (
     <div
+      // 轮播每帧都是独立组合控件；保留 `<div role="group">` 避免 `<fieldset>` 干扰 flex 布局
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
       role="group"
       aria-roledescription="slide"
       data-slot="carousel-item"

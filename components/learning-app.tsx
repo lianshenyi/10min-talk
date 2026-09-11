@@ -21,8 +21,8 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { domains, terms } from '@/data/terms';
-import { requestResearchBrief } from '@/lib/ai';
-import { initialResearchAiState, type ResearchAiState } from '@/lib/research-ai';
+import { requestResearchBrief, isMostlyChinese } from '@/lib/ai';
+import { initialResearchAiState, isHeavyThinkingStuck, isResearchStalled, type ResearchAiState } from '@/lib/research-ai';
 import { readDrawHistory } from '@/lib/draw-history';
 import { clearCurrentSession, deleteAudio, loadCurrentSession, saveAudio, saveCurrentSession, saveHistory } from '@/lib/local-repository';
 import { loadHistory, loadPersonalTerms } from '@/lib/local-repository';
@@ -89,7 +89,6 @@ export function LearningApp() {
   const [rouletteTerms, setRouletteTerms] = useState<TermCard[]>([]);
   const [personalTerms, setPersonalTerms] = useState<TermCard[]>([]);
   const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
-  const [aiConfigVersion, setAiConfigVersion] = useState(0);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -136,7 +135,6 @@ export function LearningApp() {
       const unlockedConfig = loadSessionConfig();
       if (unlockedConfig) {
         setAiConfig(unlockedConfig);
-        setAiConfigVersion((version) => version + 1);
       }
       const stored = loadCurrentSession();
       if (stored) {
@@ -372,7 +370,7 @@ export function LearningApp() {
           {phase === 'draw' && !hasDrawn && <EmptyDrawStage onDraw={drawTerm} />}
           {phase === 'draw' && isDrawing && <RouletteStage terms={rouletteTerms} />}
           {phase === 'draw' && hasDrawn && !isDrawing && <DrawStage term={term} onDraw={drawTerm} onStart={startResearch} />}
-          {phase === 'research' && <ResearchStage term={term} seconds={remainingSeconds} paused={isPaused} onPause={togglePause} onFinish={advance} aiConfig={aiConfig} aiConfigVersion={aiConfigVersion} onOpenAiSettings={() => setShowSettings(true)} />}
+          {phase === 'research' && <ResearchStage term={term} seconds={remainingSeconds} paused={isPaused} onPause={togglePause} onFinish={advance} aiConfig={aiConfig} onOpenAiSettings={() => setShowSettings(true)} />}
           {phase === 'prepare' && <PrepareStage seconds={remainingSeconds} />}
           {phase === 'speak' && <SpeakStage term={term} seconds={remainingSeconds} transcript={session.transcript} interim={interimTranscript} isRecording={isRecording} onStop={advance} />}
           {(phase === 'transcript' || phase === 'completed') && <TranscriptStage term={term} session={session} audioUrl={audioUrl} onChange={(transcript) => updateSession({ ...session, transcript })} onSave={savePractice} onAgain={() => { stopRecording(); setSession(createSession(term, session.outputSeconds)); setAudioUrl(null); setPhase('prepare', { durationMs: PREPARE_MS }); }} saved={phase === 'completed'} aiConfig={aiConfig} onEvaluation={(evaluation) => updateSession({ ...session, evaluation })} />}
@@ -380,7 +378,7 @@ export function LearningApp() {
         </section>
       </section>
       {phase === 'draw' && hasDrawn && !isDrawing && <div className="wiki-drawer"><WikipediaPanel onAdd={(item) => setPersonalTerms((current) => [...current.filter((termItem) => termItem.id !== item.id), item])} /></div>}
-      {showSettings && <AiSettings onReady={(config) => { setAiConfig(config); setAiConfigVersion((version) => version + 1); }} onClose={() => setShowSettings(false)} />}
+      {showSettings && <AiSettings onReady={(config) => { setAiConfig(config); }} onClose={() => setShowSettings(false)} />}
       {showHistory && <HistoryPanel entries={history} onDelete={(entry) => setHistory((current) => current.filter((item) => item.id !== entry.id))} onClose={() => setShowHistory(false)} />}
       <footer><Keyboard size={14} /> 抽卡时可使用 ← / → 换卡。录音、学习记录与 AI 配置只留在当前浏览器。</footer>
     </main>
@@ -400,22 +398,84 @@ function DrawStage({ term, onDraw, onStart }: { term: TermCard; onDraw: () => vo
   return <div className="draw-stage"><div className="deck-count">随机牌组 <span>144 个专业词条</span></div><button className="term-card" type="button" aria-label="向左或向右拖动以换一张卡片" onKeyDown={(event) => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') onDraw(); }} onPointerDown={(event) => { pointerStart.current = event.clientX; }} onPointerUp={(event) => { const startedAt = pointerStart.current; if (startedAt !== null && Math.abs(event.clientX - startedAt) > 60) onDraw(); pointerStart.current = null; }}><div className="card-top"><span>{term.domain}</span><span>{term.kind}</span></div><div><p className="english">{term.english}</p><h2>{term.title}</h2></div><div className="prompt"><Sparkles size={17} /><p>{term.prompt}</p></div><p className="swipe-hint">左右滑动，或按键盘方向键换一张</p></button><div className="draw-actions"><button className="ghost-action" onClick={onDraw}><RotateCcw size={18} />换一张</button><button className="primary-action" onClick={onStart}>开始 10 分钟研究 <ArrowRight size={18} /></button></div></div>;
 }
 
-function ResearchStage({ term, seconds, paused, onPause, onFinish, aiConfig, aiConfigVersion, onOpenAiSettings }: { term: TermCard; seconds: number; paused: boolean; onPause: () => void; onFinish: () => void; aiConfig: AiConfig | null; aiConfigVersion: number; onOpenAiSettings: () => void }) {
-  return <div className="focus-stage"><p className="eyebrow">研究时间</p><div className="timer">{formatClock(seconds)}</div><h2>研究「{term.title}」</h2><p className="focus-prompt">带着这个问题阅读：{term.prompt}</p><div className="source-grid">{term.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.label}><Search size={17} /><span>{source.label}</span><ExternalLink size={14} /></a>)}</div><AiResearchBrief key={`${term.id}-${aiConfigVersion}`} term={term} config={aiConfig} onOpenSettings={onOpenAiSettings} /><div className="draw-actions"><button className="ghost-action" onClick={onPause}>{paused ? <CirclePlay size={18} /> : <CirclePause size={18} />}{paused ? '继续研究' : '暂停'}</button><button className="primary-action" onClick={onFinish}>结束研究，准备口述 <ArrowRight size={18} /></button></div></div>;
+function ResearchStage({ term, seconds, paused, onPause, onFinish, aiConfig, onOpenAiSettings }: { term: TermCard; seconds: number; paused: boolean; onPause: () => void; onFinish: () => void; aiConfig: AiConfig | null; onOpenAiSettings: () => void }) {
+  return <div className="focus-stage"><p className="eyebrow">研究时间</p><div className="timer">{formatClock(seconds)}</div><h2>研究「{term.title}」</h2><p className="focus-prompt">带着这个问题阅读：{term.prompt}</p><div className="source-grid">{term.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.label}><Search size={17} /><span>{source.label}</span><ExternalLink size={14} /></a>)}</div><AiResearchBrief key={term.id} term={term} config={aiConfig} onOpenSettings={onOpenAiSettings} /><div className="draw-actions"><button className="ghost-action" onClick={onPause}>{paused ? <CirclePlay size={18} /> : <CirclePause size={18} />}{paused ? '继续研究' : '暂停'}</button><button className="primary-action" onClick={onFinish}>结束研究，准备口述 <ArrowRight size={18} /></button></div></div>;
 }
 
 function AiResearchBrief({ term, config, onOpenSettings }: { term: TermCard; config: AiConfig | null; onOpenSettings: () => void }) {
   const [state, setState] = useState<ResearchAiState>(() => initialResearchAiState(Boolean(config)));
+  // 分别累积正文与思考增量：MiniMax 在 Anthropic 协议下经常只发 thinking_delta，
+  // 若仅订阅 onTextDelta，UI 会永远卡在“AI 正在整理…”。中文思考独白与正文同等可用，
+  // 仅保留英文元推理不泄到速览区（与 `requestText` 完成时的 `isMostlyChinese` 判定一致）。
+  const [textDraft, setTextDraft] = useState('');
+  const [thinkingDraft, setThinkingDraft] = useState('');
+  const [retryToken, setRetryToken] = useState(0);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [now, setNow] = useState(0);
+  // 父组件以 term.id 作为 key，抽到新词条时 React 重建 state；中途改 AI 设置只会重跑 effect，
+  // 不会清掉已收到的草稿，新 chunks 会直接覆盖，不会在 UI 上闪回“AI 正在整理…”。
   useEffect(() => {
     if (!config) return;
+    const start = Date.now();
+    // 延迟设置避免在 effect 体内直接 setState 告警；queueMicrotask 足以在首次渲染前完成。
+    queueMicrotask(() => { setStartedAt(start); setNow(start); });
     let cancelled = false;
-    void requestResearchBrief(config, term).then((brief) => { if (!cancelled) setState({ kind: 'ready', brief }); }).catch((error) => { if (!cancelled) setState({ kind: 'failed', reason: (error as Error).message }); });
+    void requestResearchBrief(config, term, {
+      onTextDelta: (delta) => { if (!cancelled) setTextDraft((previous) => previous + delta); },
+      onThinkingDelta: (delta) => { if (!cancelled) setThinkingDraft((previous) => previous + delta); },
+    }).then((brief) => { if (!cancelled) setState({ kind: 'ready', brief }); }).catch((error) => { if (!cancelled) setState({ kind: 'failed', reason: (error as Error).message }); });
     return () => { cancelled = true; };
-  }, [config, term]);
+  }, [config, term, retryToken]);
+  const retry = useCallback(() => {
+    setTextDraft('');
+    setThinkingDraft('');
+    setState(initialResearchAiState(Boolean(config)));
+    setStartedAt(Date.now());
+    setNow(Date.now());
+    setRetryToken((token) => token + 1);
+  }, [config]);
+  // 每秒刷新 now，供 elapsed 显示；不影响请求生命周期
+  useEffect(() => {
+    if (state.kind !== 'loading') return;
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [state.kind]);
+  const elapsedSeconds = startedAt === null ? 0 : Math.max(0, Math.floor((now - startedAt) / 1000));
+  // stalled 覆盖三种路径：思考少（服务静默）、思考多（M2.7/-highspeed 深度思考）、25s 兑底。
+  // 原 `!thinkingDraft` 在深度思考场景下永远不成立，导致重试按钮与切模型提示不会露出。
+  const stalled = state.kind === 'loading' && isResearchStalled(elapsedSeconds, textDraft, thinkingDraft);
   if (state.kind === 'unavailable') return <button className="ai-source ai-source-action" onClick={onOpenSettings}><Sparkles size={17} /><span>AI 研究速览</span><small>配置并解锁后生成</small></button>;
-  if (state.kind === 'loading') return <div className="ai-source"><Sparkles size={17} />AI 正在整理…</div>;
+  if (state.kind === 'loading') {
+    const visibleDraft = textDraft || (isMostlyChinese(thinkingDraft) ? thinkingDraft : '');
+    if (visibleDraft) return <div className="ai-source"><Sparkles size={17} /><span>{visibleDraft}<span className="cursor" /></span></div>;
+    // thinking 路径：泄露字符数 + （卡住时）提示切模型或重试。
+    // -highspeed / M2.7 默认发英文元推理使 isMostlyChinese=false，这里只能看到秒数 + 字符数。
+    if (thinkingDraft) {
+      const heavyHint = isHeavyThinkingStuck(elapsedSeconds, thinkingDraft);
+      return (
+        <div className="ai-source">
+          <Sparkles size={17} />
+          <span>AI 整理中…<small className="ai-source-meta">{elapsedSeconds}s · 思考字符 {thinkingDraft.length}</small></span>
+          {stalled && <button className="ghost-action ai-source-retry" onClick={retry}>{heavyHint ? '深度思考中，切 -highspeed / M3' : '重试'}</button>}
+        </div>
+      );
+    }
+    return (
+      <div className="ai-source">
+        <Sparkles size={17} />
+        <span>{stalled ? `AI 响应较慢（${elapsedSeconds}s）…` : 'AI 正在整理…'}</span>
+        {stalled && <button className="ghost-action ai-source-retry" onClick={retry}>重试</button>}
+      </div>
+    );
+  }
   if (state.kind === 'failed') return <button className="ai-source ai-source-action" onClick={onOpenSettings}><Sparkles size={17} /><span>AI 暂时不可用</span><small>{state.reason}</small></button>;
-  return <section className="ai-research-brief"><p><Sparkles size={16} />AI 研究速览</p><span>{state.brief}</span></section>;
+  return (
+    <section className="ai-research-brief">
+      <p><Sparkles size={16} />AI 研究速览</p>
+      <span>{state.brief}</span>
+      <button className="ghost-action ai-source-retry" onClick={retry}>重新生成</button>
+    </section>
+  );
 }
 
 function PrepareStage({ seconds }: { seconds: number }) { return <div className="prepare-stage"><p className="eyebrow">准备口述</p><div className="countdown">{seconds}</div><h2>用自己的话讲清楚</h2><p>不必完美。试着说明概念、举一个例子，再说说它有什么用。</p></div>; }

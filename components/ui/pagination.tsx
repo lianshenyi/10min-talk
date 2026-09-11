@@ -55,6 +55,8 @@ function PaginationLink({
       className={cn(className)}
       nativeButton={false}
       render={
+        // 子节点由 `Button` 的 children prop 传入，静态分析看不见；调用方总会带文本/图标与 aria-label
+        // oxlint-disable-next-line jsx-a11y/anchor-has-content
         <a
           aria-current={isActive ? 'page' : undefined}
           data-slot="pagination-link"

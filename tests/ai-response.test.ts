@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 // oxlint-disable-next-line typescript(TS5097)
 import { AI_RESPONSE_TOKEN_BUDGETS, createCompletionBody, extractResponseText, getThinkingContent, isMostlyChinese, parseSSE, requestEvaluation, requestResearchBrief } from '../lib/ai.ts';
+import { isHeavyThinkingStuck, isResearchStalled } from '../lib/research-ai.ts';
 
 void test('research extracts text from OpenAI-compatible response variants', () => {
   assert.equal(extractResponseText('openai', { choices: [{ message: { content: '标准正文' } }] }), '标准正文');
@@ -261,4 +262,28 @@ void test('MiniMax M3 thinking-only stream also triggers the actionable error', 
   assert.ok(captured, '应该抛出错误');
   assert.match(captured.message, /MiniMax-M3/);
   assert.match(captured.message, /highspeed|M3/);
+});
+
+void test('isResearchStalled covers early, heavy-thinking, and fallback windows', () => {
+  // 已收到正文 → 不算卡住
+  assert.equal(isResearchStalled(60, '部分正文', 'X'.repeat(1000)), false);
+  // 思考空 + ≥8s → 早期重试
+  assert.equal(isResearchStalled(8, '', ''), true);
+  assert.equal(isResearchStalled(7, '', ''), false);
+  assert.equal(isResearchStalled(8, '', 'X'.repeat(49)), true);
+  assert.equal(isResearchStalled(8, '', 'X'.repeat(50)), false);
+  // 思考 ≥500 + ≥6s → 深度思考路径
+  assert.equal(isResearchStalled(6, '', 'X'.repeat(500)), true);
+  assert.equal(isResearchStalled(5, '', 'X'.repeat(500)), false);
+  assert.equal(isResearchStalled(6, '', 'X'.repeat(499)), false);
+  // ≥25s 兑底
+  assert.equal(isResearchStalled(25, '', 'X'.repeat(100)), true);
+  assert.equal(isResearchStalled(24, '', 'X'.repeat(100)), false);
+  assert.equal(isResearchStalled(25, '', ''), true);
+});
+
+void test('isHeavyThinkingStuck triggers the actionable switch-model prompt', () => {
+  assert.equal(isHeavyThinkingStuck(6, 'X'.repeat(500)), true);
+  assert.equal(isHeavyThinkingStuck(6, 'X'.repeat(499)), false);
+  assert.equal(isHeavyThinkingStuck(5, 'X'.repeat(500)), false);
 });

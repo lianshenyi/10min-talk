@@ -76,8 +76,10 @@ function Field({
 }: React.ComponentProps<'div'> & VariantProps<typeof fieldVariants>) {
   return (
     <div
-      role="group"
       data-slot="field"
+      // shadcn 约定，Field 可见为 div 时以 `role="group"` 标记；保留以避免影响 flex/grid 布局
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
+      role="group"
       data-orientation={orientation}
       className={cn(fieldVariants({ orientation }), className)}
       {...props}
